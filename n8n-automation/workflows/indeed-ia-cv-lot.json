@@ -1,0 +1,480 @@
+{
+  "name": "Indeed IA → CV (lot)",
+  "nodes": [
+    {
+      "id": "ed5e8b8b-ad04-43c7-a06c-a3cde7d7d1bb",
+      "name": "Déclencheur",
+      "webhookId": "e931868b-dd71-498e-b32e-b4a6de218c73",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "path": "search-ai-jobs",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "57586c6d-e352-448b-a06d-e9d66886278a",
+      "name": "Rechercher offres Indeed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'http://host.docker.internal:8000/search?days=' + encodeURIComponent($json.query.days || 3) + '&max=' + encodeURIComponent($json.query.max || 3) + ($json.query.q ? '&q=' + encodeURIComponent($json.query.q) : '') }}",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "8d9d2efb-510b-46ef-a6ce-099acc4fccc5",
+      "name": "Offres trouvées",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Transforme la réponse de GET /search en une offre par item, ou en un item « none » (aucune offre / erreur).\nconst r = $input.first().json;\nif (r.error || !Array.isArray(r.offers)) {\n  const detail = r.error ? (r.error.message || JSON.stringify(r.error)) : JSON.stringify(r);\n  return [{ json: { none: true, text: '⚠️ Recherche Indeed impossible : ' + String(detail).slice(0, 300) } }];\n}\nif (!r.offers.length) {\n  return [{ json: { none: true, text: '🔎 Aucune offre trouvée sur Indeed pour ' + (r.default_query ? 'les métiers de l’IA' : '« ' + r.q + ' »') + (Number(r.days) === 1 ? ' dans les dernières 24 heures.' : ' dans les ' + r.days + ' derniers jours.') } }];\n}\nreturn r.offers.map((o, i) => ({ json: { ...o, index: i + 1, total: r.offers.length } }));\n"
+      }
+    },
+    {
+      "id": "212af899-16c6-4c7b-9e66-7f525faba554",
+      "name": "Aucune offre ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "none",
+              "leftValue": "={{ $json.none === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "8a9d8515-9e44-48a9-b549-71116fd85c82",
+      "name": "Telegram aucune offre",
+      "webhookId": "b83f82e9-1f13-4290-99a8-d0fa07a362a5",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        960,
+        140
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8513128944",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "8e38bafb-40fc-4269-8d9f-6d4b1f7d0bce",
+      "name": "Une offre à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        960,
+        440
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "b7ed5cd4-05cc-4377-8d5f-30959ee3663b",
+      "name": "Générer CV + lettre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        1200,
+        580
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'http://127.0.0.1:5678/webhook/' + (String($('Déclencheur').first().json.query.mode || '') === 'demo' ? 'generate-cv-demo' : 'generate-cv') + '?deliver=batch&url=' + encodeURIComponent($json.url) }}",
+        "options": {
+          "timeout": 600000
+        }
+      }
+    },
+    {
+      "id": "a1d8e7ff-6be5-4bfd-95d8-81eb6c54678d",
+      "name": "Résultat offre",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        580
+      ],
+      "parameters": {
+        "jsCode": "// Associe l'offre traitée (métadonnées Indeed) au résultat du générateur, ou à l'erreur rencontrée.\nreturn $input.all().map((item, index) => {\n  const offer = $('Une offre à la fois').itemMatching(index).json;\n  const j = item.json;\n  if (j.error || typeof j.cv_latex !== 'string' || typeof j.cover_letter !== 'string') {\n    const err = j.error ? (j.error.message || JSON.stringify(j.error)) : 'réponse du générateur incomplète';\n    return { json: { ...offer, ok: false, error: String(err).slice(0, 300) }, pairedItem: { item: index } };\n  }\n  return { json: { ...j, ...offer, ok: true }, pairedItem: { item: index } };\n});\n"
+      }
+    },
+    {
+      "id": "2b5b1762-cb19-427e-aa56-8ec96a68da85",
+      "name": "Préparer envoi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Prépare l'envoi groupé : un récapitulatif + un message par offre (lien Indeed, score ATS, lettre).\nconst DEMO_BANNER = \"🎓 DÉMO ACADÉMIQUE — CV FICTIF, NE PAS ENVOYER À UN RECRUTEUR\";\nconst GROQ_ALERT = \"⚠️⚠️ GÉNÉRÉ PAR LE MODÈLE DE SECOURS (Gemini indisponible) — VÉRIFIE CHAQUE AFFIRMATION AVANT D'ENVOYER ⚠️⚠️\";\nconst demo = String($('Déclencheur').first().json.query.mode || '') === 'demo';\nconst esc = (s) => String(s ?? '').replace(/([_*`\\[])/g, '\\\\$1');\nconst results = $input.all().map((i) => i.json);\nconst ok = results.filter((j) => j.ok);\n\nconst recap = [(demo ? DEMO_BANNER + '\\n\\n' : '') + '📬 *Offres IA Indeed — derniers jours*',\n  ok.length + ' offre(s) traitée(s) sur ' + results.length + '.', ''];\nresults.forEach((j, i) => {\n  const score = j.ok && j.keyword_scores ? ' · ATS ' + (j.keyword_scores.overall_keyword_match_score ?? '—') + '%' : '';\n  recap.push((i + 1) + '. ' + (j.ok ? '✅ ' : '❌ ') + esc(j.job_title) + ' — ' + esc(j.company)\n    + ' (' + esc(j.location) + ', ' + esc(j.posted) + ')' + score + '\\n' + j.url + (j.ok ? '' : '\\n   échec : ' + esc(j.error)));\n});\n\nreturn results.map((j, i) => {\n  const head = (demo ? DEMO_BANNER + '\\n\\n' : '') + (j.generated_by === 'groq' ? GROQ_ALERT + '\\n\\n' : '')\n    + '*' + (i + 1) + '/' + results.length + ' — ' + esc(j.job_title) + '* — ' + esc(j.company) + '\\n'\n    + '📍 ' + esc(j.location) + ' · publiée : ' + esc(j.posted) + '\\n🔗 ' + j.url;\n  let message;\n  if (!j.ok) {\n    message = head + '\\n\\n❌ Échec du traitement : ' + esc(j.error);\n  } else {\n    const tail = '\\n\\n_(généré via ' + j.generated_by + ')_';\n    let letter = esc(j.cover_letter);\n    const base = head + '\\n\\n' + (j.telegram_report || '') + '\\n\\n';\n    if ((base + letter + tail).length > 4000) letter = letter.slice(0, 3990 - base.length - tail.length) + ' […]';\n    message = base + letter + tail;\n  }\n  return { json: { ...j, recap: recap.join('\\n'), message }, pairedItem: { item: i } };\n});\n"
+      }
+    },
+    {
+      "id": "0d2ce2be-0d3d-43ca-9d6b-1485c27f6dc1",
+      "name": "Telegram récapitulatif",
+      "webhookId": "7846adf1-e244-469f-83a7-d0f9e3a785c0",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        1440,
+        140
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8513128944",
+        "text": "={{ $json.recap }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "769c39f3-8e65-4f3b-aab3-06f69293d5c5",
+      "name": "Telegram offre",
+      "webhookId": "7987ba79-7591-46bb-a07e-e1e20615d673",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        1440,
+        380
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8513128944",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "d841f847-4c5a-4248-9e54-96328d1b02f1",
+      "name": "CV disponible ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        380
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ok",
+              "leftValue": "={{ $('Préparer envoi').item.json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "964f58df-ada9-4ae9-b737-3166c5aa3bab",
+      "name": "Compiler PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "position": [
+        1920,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://latex-compiler:8080/compile",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "latex",
+              "value": "={{ $('Préparer envoi').item.json.cv_latex }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "7272f9c8-3c9e-45dc-935c-f6432245604b",
+      "name": "Telegram CV PDF",
+      "webhookId": "8a8326ba-87d9-4a0e-95c5-1709858c3377",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        2160,
+        380
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendDocument",
+        "chatId": "8513128944",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {
+          "caption": "=CV — {{ $('Préparer envoi').item.json.job_title }} — {{ $('Préparer envoi').item.json.url }}",
+          "fileName": "={{ $('Préparer envoi').item.json.pdf_filename }}"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Déclencheur": {
+      "main": [
+        [
+          {
+            "node": "Rechercher offres Indeed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechercher offres Indeed": {
+      "main": [
+        [
+          {
+            "node": "Offres trouvées",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Offres trouvées": {
+      "main": [
+        [
+          {
+            "node": "Aucune offre ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aucune offre ?": {
+      "main": [
+        [
+          {
+            "node": "Telegram aucune offre",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Une offre à la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une offre à la fois": {
+      "main": [
+        [
+          {
+            "node": "Préparer envoi",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Générer CV + lettre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Générer CV + lettre": {
+      "main": [
+        [
+          {
+            "node": "Résultat offre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Résultat offre": {
+      "main": [
+        [
+          {
+            "node": "Une offre à la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer envoi": {
+      "main": [
+        [
+          {
+            "node": "Telegram récapitulatif",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram offre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram offre": {
+      "main": [
+        [
+          {
+            "node": "CV disponible ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV disponible ?": {
+      "main": [
+        [
+          {
+            "node": "Compiler PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compiler PDF": {
+      "main": [
+        [
+          {
+            "node": "Telegram CV PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true
+  }
+}

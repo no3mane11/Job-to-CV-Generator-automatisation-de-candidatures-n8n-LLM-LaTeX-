@@ -1,0 +1,14 @@
+# Anciens essais, conservés en local uniquement
+_archive/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets / configuration locale
+.env
+
+# Sorties générées localement par les outils CLI
+job-automation/output/

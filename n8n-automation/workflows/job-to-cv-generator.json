@@ -1,0 +1,541 @@
+{
+  "name": "Job to CV Generator",
+  "nodes": [
+    {
+      "id": "6ab3a82b-2121-4ada-be9b-7d4b35baa2ac",
+      "name": "Webhook",
+      "webhookId": "812fcd48-1518-40f2-b41e-59f8531ba59c",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        304
+      ],
+      "parameters": {
+        "path": "generate-cv",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "9e67bc2a-cd23-4480-a4ec-ae5a942f6d45",
+      "name": "Extraire offre",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        208
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/extract",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.query.url }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      }
+    },
+    {
+      "id": "97238aab-0d09-4c1c-8cac-cdd50c508233",
+      "name": "Lire CV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        400
+      ],
+      "parameters": {
+        "url": "http://host.docker.internal:8000/cv",
+        "options": {}
+      }
+    },
+    {
+      "id": "97ee5106-bb8f-4af5-8932-e178c81ce3f8",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        528,
+        304
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "55e51795-9484-47f5-913f-2d7e6b2cfc3e",
+      "name": "Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput",
+      "position": [
+        1296,
+        304
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: \"You are an expert technical recruiter, ATS optimization specialist, LaTeX CV writer and cover letter writer.\\nInputs below: a job offer, the detected letter language and work mode, the candidate's projects catalog (JSON) and the candidate's LaTeX CV. The original CV and the projects catalog are the ONLY source of truth about the candidate (the \\\"real repository\\\").\\n\\nPROCESS (do it silently, do not output it):\\nA. Analyze the offer: job title, company, location, work mode, experience level, education, programming languages, frameworks, databases, cloud, DevOps, tools, methodologies, responsibilities, domain, soft skills, language requirements.\\nB. If a web search tool is available, run 1 to 3 short searches (similar job offers, technologies really asked for this role, representative portfolio projects, the company's technical context) to understand which of the candidate's REAL projects are the most representative of the role. Web results never allow you to invent anything about the candidate.\\nC. Classify the offer keywords, identify the target profile, match the catalog projects, then write the CV and the letter.\\n\\nABSOLUTE RULE - NEVER INVENT: no experience, company, client, project, technology, framework, language, certification, degree, responsibility, metric, result, production deployment or expertise level that is not in the real repository. A technology asked by the offer but absent from the repository is a SKILL GAP: never add it to the CV (not in the title, Profile, Experience, Projects or Skills) and never claim it in the letter. The certification \\\"AWS Certified AI Practitioner\\\" stays in Certifications but does NOT prove any AWS service skill (EC2, S3, RDS, Lambda, VPC, IAM, ECS, EKS, CloudWatch...). Never merge two projects into one, never create a project, never add a technology to a project because the offer asks for it.\\nPOSITIONING: the candidate is a Computer Science and Networks Engineer (EMSI, 2026) with a Master 2 in AI (2026). Never describe him as student, junior, intern, final-year student, undergraduate or currently studying, and never as senior, lead, manager, principal or architect.\\n\\n===KEYWORDS=== RULES:\\nKeywords describe the OFFER (include them even when the candidate lacks them). ALWAYS write them in ENGLISH, whatever the language of the offer: translate French terms into the standard English technical term (e.g. \\\"bases vectorielles\\\" -> \\\"vector databases\\\", \\\"evaluation de modeles\\\" -> \\\"model evaluation\\\", \\\"conteneurisation\\\" -> \\\"containerization\\\", \\\"securite\\\" -> \\\"security\\\"); keep product names unchanged. Use short concrete terms, ONE term per item (e.g. \\\"EC2\\\", \\\"Docker\\\", \\\"CI/CD\\\", never \\\"Python or Bash\\\"), 3 to 8 items per list, comma-separated. MUST_HAVE = explicitly required skills; IMPORTANT = main responsibilities and strongly desired skills; NICE_TO_HAVE = pluses; DOMAIN_KEYWORDS = business domain terms.\\n\\ncv_latex RULES:\\n1. The complete, compilable LaTeX source, from \\\\documentclass to \\\\end{document}. No Markdown code fences. Keep exactly the same preamble, packages, macros, geometry, spacing and fonts; never add \\\\vspace, never add a photo. Keep the same sections in the same order: header, Profile, Professional Experience, Projects & Portfolio, Technical Skills, Education, Certifications, Availability.\\n2. Header: the name line unchanged; the title line adapted to the offer's job title, in English, honest and consistent with the real profile (\\\"Ingenieur DevOps\\\" -> \\\"DevOps Engineer\\\", \\\"Developpeur Full Stack\\\" -> \\\"Full Stack Developer\\\", \\\"Ingenieur BI\\\" -> \\\"Business Intelligence / Data Engineer\\\", \\\"AI Engineer\\\" -> \\\"AI Engineer\\\"); a short specialization after \\\" -- \\\" is allowed only with real skills. Contact line: phone and email unchanged; location: if the offer's city is Casablanca keep \\\"Casablanca, Morocco\\\", otherwise write \\\"Casablanca, Morocco (open to <offer city>)\\\". Never add an address, LinkedIn, GitHub, Portfolio or photo to the header.\\n3. Profile: at most 50 words (3 lines), written for THIS offer. Its first words are the target job title. Highlight the most relevant real experience and technologies, use the offer's keywords naturally (only those the candidate really has), no generic wording.\\n4. Professional Experience: keep every entry, employer, position title and date exactly. You MAY rephrase and reorder the bullet points, use the offer's vocabulary, stronger action verbs and highlight existing technologies, but every statement must be supported by the original CV or the projects catalog. Keep at most the same number of bullet points per entry, each at most 2 lines (about 28 words).\\n5. Projects & Portfolio: keep its introductory GitHub line, then 2 projects chosen from the PROJECTS CATALOG that best match the offer (category_tags, technologies, description, keywords, responsibilities, web research); a 3rd project only if each of the three fits on a single line. For each: the catalog name in bold (it may be shortened), a reformulated description based only on its catalog description, highlighting what matters for the offer, then in italics at most 6 technologies taken ONLY from that project's catalog \\\"technologies\\\" list. Each project at most 2 lines. If the offer is mainly an AI / machine learning / generative AI position, do not select \\\"RAG Knowledge Assistant (PFE-RAG)\\\" (it would duplicate the RAG work of the Qualitiz experience).\\n6. Technical Skills: exactly 5 bullet lines, each at most 1.5 lines. Reorder categories and items so the skills most relevant to the offer come first; category names may be adapted to the offer. Use ONLY skills present in the real repository; never add a skill gap.\\n7. Education and Certifications: unchanged.\\n8. Availability: start with \\\"Based in Casablanca, Morocco. Available immediately\\\"; if the offer's city is not Casablanca continue with \\\" for a position in <offer city>\\\"; if the \\\"=== WORK MODE ===\\\" section is not \\\"none\\\", add that the candidate is open to that work mode. Never claim to live in another city.\\n9. ONE PAGE: the CV must fit on one A4 page; apart from the Projects items you add, the rewritten CV must not be longer than the original.\\n10. The CV is always in English. Escape LaTeX special characters correctly (write \\\\& for an ampersand, never a bare &).\\n\\ncover_letter RULES:\\n1. Language: the one given in \\\"=== LETTER LANGUAGE ===\\\". Length: 180 to 220 words in total.\\n2. Structure: a salutation line, then EXACTLY 4 paragraphs separated by blank lines, then a short closing formula line and the name \\\"Haimoudi Nouaman\\\" on the last line.\\n   Paragraph 1 - HOOK: start directly with a concrete fact about the role, a technology, the product, a project or the company context (quote the exact job title and the company name).\\n   Paragraph 2 - PROOF: ONE real accomplishment matching the main MUST_HAVE, from the experience or a catalog project, with its real technologies.\\n   Paragraph 3 - FIT: link the profile to ONE concrete responsibility of the offer (name it). Mention the offer's city honestly: the candidate is based in Casablanca; if the city differs, say he is ready to work in that city; if the work mode is not \\\"none\\\", mention it in the same sentence. Never claim to live elsewhere.\\n   Paragraph 4 - CLOSING: short, professional and confident; propose an interview.\\n3. Never claim a skill gap, never overstate, never mention an attachment other than the CV.\\n4. FORBIDDEN phrases (and any equivalent): \\\"Je vous ecris pour\\\", \\\"vif interet\\\", \\\"Je suis actuellement\\\", \\\"Je souhaite vous exprimer\\\", \\\"Actuellement etudiant\\\", \\\"Fort de mon experience\\\", \\\"Je reste a votre entiere disposition\\\", \\\"Je me tiens a votre disposition\\\", \\\"Je serais ravi de\\\", \\\"N'hesitez pas a me contacter\\\", \\\"Passionne par l'innovation\\\", \\\"Je vous prie d'agreer\\\", \\\"Veuillez agreer\\\", \\\"I am writing to\\\", \\\"express my interest\\\", \\\"Currently a student\\\", \\\"I am currently studying\\\", \\\"As a final-year student\\\", \\\"I would be delighted\\\", \\\"Please do not hesitate to contact me\\\".\\n5. Plain text; no Markdown symbols, no placeholders like [Company].\\n\\n=== JOB OFFER ===\\n\" + 'Title: ' + $json.job_title + '\\nCompany: ' + $json.company + '\\nLocation: ' + $json.location + '\\n\\nDescription:\\n' + $json.description + '\\n\\n=== LETTER LANGUAGE (detected from the job offer text) ===\\n' + ((($json.description || '').match(/\\b(le|la|les|des|et|vous|votre|pour|avec|une|du|nous|est|dans|sur)\\b/gi) || []).length > (($json.description || '').match(/\\b(the|and|you|your|for|with|our|is|are|to|of|in|we)\\b/gi) || []).length ? 'French' : 'English') + '\\n\\n=== WORK MODE (detected from the job offer text) ===\\n' + $json.work_mode + '\\n\\n=== PROJECTS CATALOG (JSON) ===\\n' + JSON.stringify($json.projects, null, 2) + '\\n\\n=== ORIGINAL CV (LaTeX) ===\\n' + $json.cv_latex + '\\n\\n' + \"OUTPUT FORMAT (mandatory, identical for every model): plain text only, exactly the structure below, nothing before the first marker and nothing after the last one. Write the LaTeX raw, exactly as in a .tex file, with real line breaks, not escaped, no code fences.\\n===KEYWORDS===\\nMUST_HAVE:\\n<keyword1, keyword2, ...>\\nIMPORTANT:\\n<keyword1, keyword2, ...>\\nNICE_TO_HAVE:\\n<keyword1, keyword2, ...>\\nDOMAIN_KEYWORDS:\\n<keyword1, keyword2, ...>\\n===CV_LATEX===\\n<complete LaTeX source>\\n===COVER_LETTER===\\n<cover letter>\\n===END===\" }] }], generationConfig: { temperature: 0.2 } }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "rb3o9lj3RHUENcVs",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "id": "d4cdfb1a-af49-477a-a23e-c3c4892213d7",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2320,
+        460
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Envoyé sur Telegram",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "2766edd6-5c48-4531-9983-78403aa42d9b",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        304
+      ],
+      "parameters": {
+        "jsCode": "// Lit la réponse de Gemini (candidates[0].content.parts) ou de Groq Fallback (choices[0].message.content),\n// au format texte à balises : ===KEYWORDS=== ... ===CV_LATEX=== ... ===COVER_LETTER=== ... ===END===\n// puis contrôle déterministe : référentiel réel (cv_source.tex + projects_catalog.json), ATS Keyword Match Score,\n// skill gaps, surestimations (overclaim), formules interdites et structure de la lettre. Rien n'est corrigé en\n// silence : les écarts sont signalés dans le message Telegram.\nfunction normalizeLatex(latex) {\n  // Espaces et tirets typographiques invisibles que pdflatex ne sait pas composer -> équivalents LaTeX/ASCII.\n  latex = latex\n    .replace(/[\\u00A0\\u202F]/g, '~')\n    .replace(/[\\u2002-\\u200A\\u205F]/g, ' ')\n    .replace(/[\\u200B-\\u200D\\u2060\\uFEFF]/g, '')\n    .replace(/[\\u2010\\u2011\\u2212]/g, '-');\n  // '&' non échappé (\"DevOps & Architecture\") : erreur \"Misplaced alignment tab\". On l'échappe, sauf si le\n  // document contient un environnement où '&' sépare légitimement des colonnes.\n  if (!/\\\\begin\\{(tabular\\*?|tabularx|longtable|array|align\\*?|alignat\\*?|eqnarray\\*?|[pbvBV]?matrix|cases|split)\\}/.test(latex)) {\n    latex = latex.replace(/(?<!\\\\)&/g, '\\\\&');\n  }\n  // Filet de sécurité : sur une seule ligne, un '%' non échappé commenterait tout le reste du document.\n  if (latex.includes('\\n')) return latex;\n  return latex\n    .replace(/(?<!\\\\)%/g, '%\\n')\n    .replace(/\\\\(documentclass|usepackage|geometry|renewcommand|pagestyle|setlength|definecolor|hypersetup|setcounter|titleformat|titlespacing|setlist|newcommand|begin|end|section|item|entryheader|vspace)(?![A-Za-z])/g, '\\n\\\\$1')\n    .replace(/^\\n+/, '');\n}\n\n// Nom du PDF envoyé sur Telegram : Nouaman_Haimoudi_<titre du poste>_offre.pdf\n// (accents translittérés, tout sauf lettres/chiffres -> \"_\", 60 caractères max pour Windows).\nfunction slugify(text) {\n  const slug = String(text || '')\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^A-Za-z0-9]+/g, '_')\n    .replace(/^_+|_+$/g, '')\n    .slice(0, 60)\n    .replace(/_+$/g, '');\n  return slug || 'poste';\n}\nconst offer = $('Extraire offre').first().json;\nconst pdfFilename = 'Nouaman_Haimoudi_' + slugify(offer.job_title) + '_offre.pdf';\n\n// ---------- Normalisation de texte et recherche de termes ----------\nconst fold = (s) => String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[\\u2019`]/g, \"'\");\nconst stem = (t) => (t.length > 4 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t);\nconst STOP = new Set(['and', 'or', 'of', 'the', 'with', 'for', 'to', 'in', 'on', 'a', 'an', 'et', 'ou', 'de', 'des',\n  'du', 'la', 'le', 'les', 'en', 'avec', 'pour', 'sur', 'using', 'based', 'skill', 'experience', 'knowledge',\n  'connaissance', 'maitrise', 'solide', 'bonne']);\nconst tokens = (s) => fold(s).replace(/[^a-z0-9+#.]+/g, ' ').replace(/\\.(?=\\s|$)/g, ' ').split(/\\s+/).filter(Boolean).map(stem);\nfunction corpus(text) {\n  const t = tokens(text);\n  return { text: ' ' + t.join(' ') + ' ', set: new Set(t) };\n}\nfunction latexToText(tex) {\n  const body = String(tex || '').split('\\\\begin{document}').pop();\n  return body\n    .replace(/(?<!\\\\)%.*$/gm, '')\n    .replace(/\\\\href\\{[^}]*\\}\\{([^}]*)\\}/g, '$1')\n    .replace(/\\\\([&%#_$])/g, '$1')\n    .replace(/\\\\[a-zA-Z]+\\*?(\\[[^\\]]*\\])?/g, ' ')\n    .replace(/[{}~]/g, ' ')\n    .replace(/--+/g, '-');\n}\nconst SECTION = (name) => new RegExp('\\\\\\\\section\\\\{' + name + '\\\\}([\\\\s\\\\S]*?)(?=\\\\\\\\section\\\\{|\\\\\\\\end\\\\{document\\\\})');\nconst sectionOf = (tex, name) => ((String(tex).match(SECTION(name)) || [])[1] || '');\nconst withoutSection = (tex, name) => String(tex).replace(SECTION(name), '');\n// Synonymes : un mot-clé est reconnu si l'une de ses variantes est présente.\nconst ALIASES = [\n  ['ci/cd', 'ci cd', 'cicd', 'continuous integration', 'continuous delivery', 'continuous deployment', 'integration continue', 'deploiement continu'],\n  ['kubernetes', 'k8s'], ['javascript', 'js'], ['typescript', 'ts'], ['postgresql', 'postgres'],\n  ['machine learning', 'ml', 'apprentissage automatique'], ['llm', 'llms', 'large language model', 'large language models'],\n  ['rag', 'retrieval augmented generation', 'retrieval-augmented generation'], ['genai', 'generative ai', 'ia generative', 'gen ai'],\n  ['ai', 'artificial intelligence', 'ia', 'intelligence artificielle'], ['nlp', 'natural language processing'],\n  ['rest api', 'api rest', 'rest apis', 'restful', 'api restful'], ['conteneurisation', 'containerization', 'docker'],\n  ['power bi', 'powerbi'], ['node.js', 'nodejs', 'node'], ['c#', 'csharp'], ['spring boot', 'spring'],\n  ['agile', 'scrum'], ['gitlab ci', 'gitlab ci/cd', 'gitlab'], ['github actions', 'github action'],\n];\nfunction variants(term) {\n  const f = fold(term).trim();\n  const group = ALIASES.find((grp) => grp.includes(f));\n  return group ? group : [f];\n}\nfunction hasTerm(c, term) {\n  const t = tokens(term).filter((x) => !STOP.has(x));\n  if (!t.length) return false;\n  if (c.text.includes(' ' + t.join(' ') + ' ')) return true;\n  return t.length > 1 && t.length <= 3 && t.every((x) => c.set.has(x));\n}\nconst matches = (c, term) => variants(term).some((v) => hasTerm(c, v));\n\n// ---------- Référentiel réel : cv_source.tex + projects_catalog.json ----------\nconst source = $('Mode de travail').first().json;\nconst sourceCv = String(source.cv_latex || '');\nconst projects = Array.isArray(source.projects) ? source.projects : [];\nconst catalogText = projects.map((p) => [p.name, p.description, ...(p.technologies || [])].join(' ')).join('\\n');\n// Les certifications ne prouvent pas une compétence (ex. « AWS Certified AI Practitioner » ≠ EC2/VPC/IAM).\nconst real_skills_repository = corpus(latexToText(withoutSection(sourceCv, 'Certifications')) + '\\n' + catalogText);\nconst certificationsOnly = corpus(latexToText(sectionOf(sourceCv, 'Certifications')));\nconst CERT_NAMES = /AWS Certified AI Practitioner/gi;\n\n// Technologies courantes cherchées dans le CV généré et la lettre, pour repérer une compétence ajoutée sans source.\nconst TECH = ['AWS', 'EC2', 'S3', 'RDS', 'Lambda', 'VPC', 'IAM', 'ECS', 'EKS', 'CloudWatch', 'CloudTrail', 'Auto Scaling',\n  'Elastic Load Balancer', 'Azure', 'GCP', 'Google Cloud', 'Terraform', 'Ansible', 'Jenkins', 'Prometheus', 'Grafana',\n  'Datadog', 'ELK', 'Elasticsearch', 'Kibana', 'Kafka', 'RabbitMQ', 'Redis', 'Helm', 'ArgoCD', 'OpenStack', 'VMware',\n  'Nginx', 'Linux', 'Bash', 'PowerShell', 'VPN', 'Golang', 'Rust', 'Scala', 'Spark', 'Hadoop', 'Airflow', 'dbt',\n  'Snowflake', 'Databricks', 'Tableau', 'Laravel', 'Symfony', 'Django', 'Flask', 'Node.js', 'Express', 'Next.js',\n  'Angular', 'Vue.js', 'TypeScript', 'GraphQL', 'Oracle', 'SQL Server', 'Cassandra', 'Pandas', 'Scikit-learn',\n  'PyTorch', 'TensorFlow', 'Keras', 'Hugging Face', 'LangChain', 'LlamaIndex', 'OpenAI', 'MLflow', 'Kubeflow',\n  'SageMaker', 'Selenium', 'Jira', 'SAP', 'Salesforce', 'ETL', 'Data Warehouse'];\n\nreturn $input.all().map((item, index) => {\n  const j = item.json;\n  let text;\n  let generatedBy;\n  let webQueries = [];\n  if (typeof j.candidates?.[0]?.content?.parts?.[0]?.text === 'string') {\n    text = j.candidates[0].content.parts.map((p) => p.text || '').join('');\n    generatedBy = 'gemini';\n    webQueries = j.candidates[0].groundingMetadata?.webSearchQueries || [];\n  } else if (typeof j.choices?.[0]?.message?.content === 'string') {\n    text = j.choices[0].message.content;\n    generatedBy = 'groq';\n    webQueries = (j.choices[0].message.executed_tools || []).map((t) => t.arguments || t.type).filter(Boolean);\n  } else {\n    throw new Error('Format de réponse inconnu (ni Gemini ni Groq) : ' + JSON.stringify(j).slice(0, 500));\n  }\n  const m = text.match(/===KEYWORDS===\\s*([\\s\\S]*?)\\s*===CV_LATEX===\\s*([\\s\\S]*?)\\s*===COVER_LETTER===\\s*([\\s\\S]*?)\\s*(?:===END===[\\s\\S]*)?$/);\n  if (!m) {\n    throw new Error('Balises ===KEYWORDS=== / ===CV_LATEX=== / ===COVER_LETTER=== absentes de la réponse '\n      + generatedBy + ' — début : ' + text.slice(0, 300));\n  }\n  const cvLatex = normalizeLatex(m[2].trim().replace(/^```(?:latex|tex)?\\s*/i, '').replace(/\\s*```$/, ''));\n  const coverLetter = m[3].trim();\n  if (!cvLatex.startsWith('\\\\documentclass') || !cvLatex.includes('\\\\end{document}')) {\n    throw new Error('cv_latex incomplet dans la réponse ' + generatedBy + ' (début : ' + cvLatex.slice(0, 80) + ')');\n  }\n  if (!coverLetter) {\n    throw new Error('cover_letter vide dans la réponse ' + generatedBy);\n  }\n\n  // ---------- Mots-clés de l'offre ----------\n  const keywordList = (label) => {\n    const block = (m[1].match(new RegExp(label + '\\\\s*:\\\\s*([\\\\s\\\\S]*?)(?=\\\\n\\\\s*(?:MUST_HAVE|IMPORTANT|NICE_TO_HAVE|DOMAIN_KEYWORDS)\\\\s*:|$)')) || [])[1] || '';\n    const seen = new Set();\n    return block.split(/[,;\\n]/).map((k) => k.replace(/^[\\s\\-*•]+|[\\s.]+$/g, '').trim())\n      .filter((k) => k && k.length <= 60 && !seen.has(fold(k)) && seen.add(fold(k)));\n  };\n  const keywords = {\n    must_have: keywordList('MUST_HAVE'), important: keywordList('IMPORTANT'),\n    nice_to_have: keywordList('NICE_TO_HAVE'), domain: keywordList('DOMAIN_KEYWORDS'),\n  };\n\n  // ---------- CV généré : couverture, skill gaps, surestimations ----------\n  const generatedSkills = corpus(latexToText(withoutSection(cvLatex, 'Certifications')).replace(CERT_NAMES, ' '));\n  const letterCorpus = corpus(coverLetter.replace(CERT_NAMES, ' '));\n  const skill_gaps = [];\n  const overclaim_warnings = [];\n  const addOverclaim = (msg) => { if (!overclaim_warnings.includes(msg)) overclaim_warnings.push(msg); };\n  const coverage = {};\n  for (const [level, list] of [['must_have', keywords.must_have], ['important', keywords.important], ['nice_to_have', keywords.nice_to_have]]) {\n    const covered = [];\n    for (const kw of list) {\n      const supported = matches(real_skills_repository, kw);\n      const inCv = matches(generatedSkills, kw);\n      if (supported && inCv) covered.push(kw);\n      if (!supported) {\n        const gap = matches(certificationsOnly, kw) ? kw + ' (certification uniquement)' : kw;\n        if (!skill_gaps.includes(gap)) skill_gaps.push(gap);\n        if (inCv) addOverclaim(kw + ' : présent dans le CV généré mais absent du référentiel réel');\n      }\n    }\n    coverage[level] = { total: list.length, covered };\n  }\n  for (const kw of keywords.domain) {\n    if (!matches(real_skills_repository, kw) && matches(generatedSkills, kw)) {\n      addOverclaim(kw + ' : domaine revendiqué dans le CV généré mais absent du référentiel réel');\n    }\n  }\n  for (const tech of TECH) {\n    if (matches(real_skills_repository, tech)) continue;\n    if (matches(generatedSkills, tech)) addOverclaim(tech + ' : présent dans le CV généré mais absent du référentiel réel');\n    if (matches(letterCorpus, tech)) addOverclaim(tech + ' : cité dans la lettre (absent du référentiel réel, ne pas le présenter comme une compétence)');\n  }\n  // Chiffres/pourcentages : « 30 % », « reduced by 40 », « amélioré de 2x »... absents du référentiel -> suspects.\n  const PERCENT = /(\\d+(?:[.,]\\d+)?)\\s?%/g;\n  const CHANGE_BY = /\\b(?:increas\\w*|reduc\\w*|improv\\w*|boost\\w*|decreas\\w*|cut|augment\\w*|r[ée]dui\\w*|r[ée]duction|am[ée]lior\\w*|diminu\\w*|acc[ée]l[ée]r\\w*)\\b[^.\\n]{0,40}?\\b(?:by|de|of|par)\\s+(\\d+(?:[.,]\\d+)?)(\\s?(?:%|x|fois|times))?/gi;\n  const numberInRepository = (n) => new RegExp('(?<![\\\\d.,])' + n.replace('.', '[.,]').replace(',', '[.,]') + '(?![\\\\d])')\n    .test(sourceCv + '\\n' + JSON.stringify(projects));\n  for (const text of [latexToText(cvLatex), coverLetter]) {\n    for (const re of [PERCENT, CHANGE_BY]) {\n      for (const hit of text.matchAll(re)) {\n        const value = hit[1] + (re === PERCENT ? ' %' : (hit[2] || '').replace(/^\\s*/, ' ').trimEnd());\n        if (!numberInRepository(hit[1])) addOverclaim('chiffre suspect : ' + value.trim());\n      }\n    }\n  }\n\n  // ---------- ATS Keyword Match Score ----------\n  const pct = (level) => (coverage[level].total ? Math.round((100 * coverage[level].covered.length) / coverage[level].total) : null);\n  const scores = { must_have_score: pct('must_have'), important_score: pct('important'), nice_to_have_score: pct('nice_to_have') };\n  const weighted = [[scores.must_have_score, 0.6], [scores.important_score, 0.3], [scores.nice_to_have_score, 0.1]]\n    .filter(([s]) => s !== null);\n  const weightSum = weighted.reduce((a, [, w]) => a + w, 0);\n  scores.overall_keyword_match_score = weightSum ? Math.round(weighted.reduce((a, [s, w]) => a + s * w, 0) / weightSum) : null;\n\n  // ---------- Positionnement (CV) ----------\n  const header = cvLatex.split('\\\\begin{document}').pop().split('\\\\section{')[0];\n  const profile = sectionOf(cvLatex, 'Profile');\n  const cvTitle = latexToText((header.match(/\\\\color\\{lightgray\\}\\s*([^}]*)\\}/) || [])[1] || '').replace(/\\s+/g, ' ').trim();\n  const banned_phrase_warnings = [];\n  const STUDENT = /\\b(students?|etudiante?s?|undergraduate|currently studying|final[- ]year|fin d'etudes|en cours de formation|junior)\\b/;\n  const studentCv = fold(latexToText(withoutSection(cvLatex, 'Education'))).match(STUDENT);\n  if (studentCv) banned_phrase_warnings.push('CV : « ' + studentCv[0] + ' »');\n  const seniority = fold(latexToText(header + profile)).match(/\\b(senior|lead|manager|principal|architect|intern|stagiaire)\\b/);\n  if (seniority) addOverclaim('Titre/Profile : « ' + seniority[0] + ' » non justifié');\n  if (/\\\\includegraphics|tikzpicture|linkedin|github|portfolio|vercel/i.test(header)) {\n    addOverclaim('Header : photo ou lien (LinkedIn/GitHub/Portfolio) réapparu');\n  }\n\n  // ---------- Lettre ----------\n  const letterFold = fold(coverLetter);\n  const BANNED = [\n    [/je vous ecris/, 'Je vous écris…'], [/vif interet/, 'vif intérêt'], [/je suis actuellement/, 'Je suis actuellement…'],\n    [/je souhaite (vous )?exprimer/, 'Je souhaite vous exprimer…'], [/fort(e)? de mon experience|fort(e)? de mes/, 'Fort de mon expérience'],\n    [/je (reste|me tiens) a votre (entiere |totale )?disposition/, 'Je reste à votre disposition'],\n    [/je serai(s)? ravi(e)?/, 'Je serais ravi de'], [/n'hesitez pas/, \"N'hésitez pas…\"],\n    [/passionne(e)? par l'innovation|passionate about innovation/, \"Passionné par l'innovation\"],\n    [/je vous prie d'agreer|veuillez agreer/, \"Je vous prie d'agréer…\"], [/i am writing|i'm writing/, 'I am writing…'],\n    [/express my (strong |keen |sincere )?interest/, 'express my interest'], [/currently a student/, 'Currently a student'],\n    [/currently studying/, 'I am currently studying'], [/final[- ]year student/, 'As a final-year student'],\n    [/i would be delighted|i'd be delighted/, 'I would be delighted'], [/do not hesitate|don't hesitate/, 'Please do not hesitate…'],\n  ];\n  for (const [re, label] of BANNED) if (re.test(letterFold)) banned_phrase_warnings.push('Lettre : « ' + label + ' »');\n  const studentLetter = letterFold.match(STUDENT);\n  if (studentLetter) banned_phrase_warnings.push('Lettre : « ' + studentLetter[0] + ' »');\n\n  const words = coverLetter.split(/\\s+/).filter(Boolean).length;\n  const paragraphs = coverLetter.split(/\\n\\s*\\n/).map((b) => b.trim()).filter((b) => b.split(/\\s+/).length >= 12).length;\n  const offerCity = String(offer.location || '').split(',')[0].trim();\n  const CITIES = ['casablanca', 'rabat', 'marrakech', 'tanger', 'agadir', 'fes', 'meknes', 'oujda', 'kenitra', 'tetouan', 'el jadida', 'mohammedia', 'sale'];\n  const otherCity = CITIES.find((c) => c !== fold(offerCity) && c !== 'casablanca' && new RegExp('\\\\b' + c + '\\\\b').test(letterFold));\n  const falseHome = letterFold.match(/(je vis a|j'habite a|je reside a|residant a|i live in|living in|i reside in)\\s+(?!casablanca)[a-z-]+/);\n  const titleWords = tokens(offer.job_title).filter((t) => t.length >= 4 && !['h/f', 'f/h'].includes(t));\n  const letter_warnings = [];\n  if (words < 180 || words > 220) letter_warnings.push(words + ' mots (attendu : 180–220)');\n  if (paragraphs !== 4) letter_warnings.push(paragraphs + ' paragraphes (attendu : 4)');\n  if (offer.company && !letterFold.includes(fold(offer.company))) letter_warnings.push('entreprise « ' + offer.company + ' » absente');\n  if (titleWords.length && !titleWords.some((t) => letterCorpus.set.has(t))) letter_warnings.push('intitulé du poste absent');\n  if (otherCity) letter_warnings.push('ville inattendue : ' + otherCity);\n  if (falseHome) letter_warnings.push('fausse résidence : « ' + falseHome[0] + ' »');\n  if (![...keywords.must_have, ...keywords.important].some((k) => matches(letterCorpus, k))) {\n    letter_warnings.push(\"aucune exigence de l'offre (MUST_HAVE/IMPORTANT) citée\");\n  }\n\n  // ---------- Bloc Telegram (Markdown échappé) ----------\n  const esc = (s) => String(s).replace(/([_*`\\[])/g, '\\\\$1');\n  const show = (s) => (s === null ? '—' : s + '%');\n  const lines = ['📊 *ATS Keyword Match*',\n    'MUST-HAVE : ' + show(scores.must_have_score), 'IMPORTANT : ' + show(scores.important_score),\n    'NICE-TO-HAVE : ' + show(scores.nice_to_have_score), 'GLOBAL : ' + show(scores.overall_keyword_match_score)];\n  if (overclaim_warnings.length) lines.push('', '⚠️ *À vérifier avant envoi :*', ...overclaim_warnings.map((w) => '• ' + esc(w)));\n  if (skill_gaps.length) lines.push('', '🔎 *Compétences demandées mais non démontrées :*', esc(skill_gaps.join(', ')));\n  if (banned_phrase_warnings.length) lines.push('', '⚠️ *Formules à corriger :*', ...banned_phrase_warnings.map((w) => '• ' + esc(w)));\n  if (letter_warnings.length) lines.push('', '📝 *Lettre à revoir :*', ...letter_warnings.map((w) => '• ' + esc(w)));\n\n  return {\n    json: {\n      cv_latex: cvLatex, cover_letter: coverLetter, generated_by: generatedBy, pdf_filename: pdfFilename,\n      cv_title: cvTitle, keywords, keyword_scores: scores, skill_gaps, overclaim_warnings, banned_phrase_warnings,\n      letter_checks: { words, paragraphs, warnings: letter_warnings }, web_search_queries: webQueries,\n      telegram_report: lines.join('\\n'),\n    },\n    pairedItem: { item: index },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "3a78caef-426c-4aa7-89e5-5d8ee3f5e0f0",
+      "name": "Compiler PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1808,
+        460
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://latex-compiler:8080/compile",
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "latex",
+              "value": "={{ $json.cv_latex }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "be7eec06-712b-489a-8c22-03fa15bba973",
+      "name": "Telegram",
+      "webhookId": "f192d07f-277d-4732-9dd3-2bfadb8e2efa",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        1808,
+        150
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "8513128944",
+        "text": "={{ $json.generated_by === 'groq' ? \"⚠️⚠️ GÉNÉRÉ PAR LE MODÈLE DE SECOURS (Gemini indisponible) — VÉRIFIE CHAQUE AFFIRMATION AVANT D'ENVOYER ⚠️⚠️\\n\\n\" : '' }}*{{ $('Extraire offre').item.json.job_title.replace(/([_*`\\[])/g, '\\\\$1') }}* — {{ $('Extraire offre').item.json.company.replace(/([_*`\\[])/g, '\\\\$1') }}\n{{ $('Webhook').item.json.query.url.replace(/([_*`\\[])/g, '\\\\$1') }}\n\n{{ $json.telegram_report }}\n\n{{ $json.cover_letter.replace(/([_*`\\[])/g, '\\\\$1') }}\n\n_(généré via {{ $json.generated_by }})_",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "81c7b99f-e08f-40dd-8bdb-04c33ea385eb",
+      "name": "Telegram CV PDF",
+      "webhookId": "82ba8a5c-4607-4554-be99-acd8c447653b",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [
+        2064,
+        460
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendDocument",
+        "chatId": "8513128944",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "additionalFields": {
+          "caption": "=CV adapté pour {{ $('Extraire offre').item.json.job_title }}",
+          "fileName": "={{ $('Code').item.json.pdf_filename }}"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "YEjjcFo9cR6MgFqc",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "id": "05ec67b0-cc54-4cd1-9958-67c2630851ac",
+      "name": "Groq Fallback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "position": [
+        1552,
+        560
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'openai/gpt-oss-120b', temperature: 0.2, max_completion_tokens: 16000, reasoning_effort: 'low', tools: [{ type: 'browser_search' }], messages: [{ role: 'user', content: \"You are an expert technical recruiter, ATS optimization specialist, LaTeX CV writer and cover letter writer.\\nInputs below: a job offer, the detected letter language and work mode, the candidate's projects catalog (JSON) and the candidate's LaTeX CV. The original CV and the projects catalog are the ONLY source of truth about the candidate (the \\\"real repository\\\").\\n\\nPROCESS (do it silently, do not output it):\\nA. Analyze the offer: job title, company, location, work mode, experience level, education, programming languages, frameworks, databases, cloud, DevOps, tools, methodologies, responsibilities, domain, soft skills, language requirements.\\nB. If a web search tool is available, run 1 to 3 short searches (similar job offers, technologies really asked for this role, representative portfolio projects, the company's technical context) to understand which of the candidate's REAL projects are the most representative of the role. Web results never allow you to invent anything about the candidate.\\nC. Classify the offer keywords, identify the target profile, match the catalog projects, then write the CV and the letter.\\n\\nABSOLUTE RULE - NEVER INVENT: no experience, company, client, project, technology, framework, language, certification, degree, responsibility, metric, result, production deployment or expertise level that is not in the real repository. A technology asked by the offer but absent from the repository is a SKILL GAP: never add it to the CV (not in the title, Profile, Experience, Projects or Skills) and never claim it in the letter. The certification \\\"AWS Certified AI Practitioner\\\" stays in Certifications but does NOT prove any AWS service skill (EC2, S3, RDS, Lambda, VPC, IAM, ECS, EKS, CloudWatch...). Never merge two projects into one, never create a project, never add a technology to a project because the offer asks for it.\\nPOSITIONING: the candidate is a Computer Science and Networks Engineer (EMSI, 2026) with a Master 2 in AI (2026). Never describe him as student, junior, intern, final-year student, undergraduate or currently studying, and never as senior, lead, manager, principal or architect.\\n\\n===KEYWORDS=== RULES:\\nKeywords describe the OFFER (include them even when the candidate lacks them). ALWAYS write them in ENGLISH, whatever the language of the offer: translate French terms into the standard English technical term (e.g. \\\"bases vectorielles\\\" -> \\\"vector databases\\\", \\\"evaluation de modeles\\\" -> \\\"model evaluation\\\", \\\"conteneurisation\\\" -> \\\"containerization\\\", \\\"securite\\\" -> \\\"security\\\"); keep product names unchanged. Use short concrete terms, ONE term per item (e.g. \\\"EC2\\\", \\\"Docker\\\", \\\"CI/CD\\\", never \\\"Python or Bash\\\"), 3 to 8 items per list, comma-separated. MUST_HAVE = explicitly required skills; IMPORTANT = main responsibilities and strongly desired skills; NICE_TO_HAVE = pluses; DOMAIN_KEYWORDS = business domain terms.\\n\\ncv_latex RULES:\\n1. The complete, compilable LaTeX source, from \\\\documentclass to \\\\end{document}. No Markdown code fences. Keep exactly the same preamble, packages, macros, geometry, spacing and fonts; never add \\\\vspace, never add a photo. Keep the same sections in the same order: header, Profile, Professional Experience, Projects & Portfolio, Technical Skills, Education, Certifications, Availability.\\n2. Header: the name line unchanged; the title line adapted to the offer's job title, in English, honest and consistent with the real profile (\\\"Ingenieur DevOps\\\" -> \\\"DevOps Engineer\\\", \\\"Developpeur Full Stack\\\" -> \\\"Full Stack Developer\\\", \\\"Ingenieur BI\\\" -> \\\"Business Intelligence / Data Engineer\\\", \\\"AI Engineer\\\" -> \\\"AI Engineer\\\"); a short specialization after \\\" -- \\\" is allowed only with real skills. Contact line: phone and email unchanged; location: if the offer's city is Casablanca keep \\\"Casablanca, Morocco\\\", otherwise write \\\"Casablanca, Morocco (open to <offer city>)\\\". Never add an address, LinkedIn, GitHub, Portfolio or photo to the header.\\n3. Profile: at most 50 words (3 lines), written for THIS offer. Its first words are the target job title. Highlight the most relevant real experience and technologies, use the offer's keywords naturally (only those the candidate really has), no generic wording.\\n4. Professional Experience: keep every entry, employer, position title and date exactly. You MAY rephrase and reorder the bullet points, use the offer's vocabulary, stronger action verbs and highlight existing technologies, but every statement must be supported by the original CV or the projects catalog. Keep at most the same number of bullet points per entry, each at most 2 lines (about 28 words).\\n5. Projects & Portfolio: keep its introductory GitHub line, then 2 projects chosen from the PROJECTS CATALOG that best match the offer (category_tags, technologies, description, keywords, responsibilities, web research); a 3rd project only if each of the three fits on a single line. For each: the catalog name in bold (it may be shortened), a reformulated description based only on its catalog description, highlighting what matters for the offer, then in italics at most 6 technologies taken ONLY from that project's catalog \\\"technologies\\\" list. Each project at most 2 lines. If the offer is mainly an AI / machine learning / generative AI position, do not select \\\"RAG Knowledge Assistant (PFE-RAG)\\\" (it would duplicate the RAG work of the Qualitiz experience).\\n6. Technical Skills: exactly 5 bullet lines, each at most 1.5 lines. Reorder categories and items so the skills most relevant to the offer come first; category names may be adapted to the offer. Use ONLY skills present in the real repository; never add a skill gap.\\n7. Education and Certifications: unchanged.\\n8. Availability: start with \\\"Based in Casablanca, Morocco. Available immediately\\\"; if the offer's city is not Casablanca continue with \\\" for a position in <offer city>\\\"; if the \\\"=== WORK MODE ===\\\" section is not \\\"none\\\", add that the candidate is open to that work mode. Never claim to live in another city.\\n9. ONE PAGE: the CV must fit on one A4 page; apart from the Projects items you add, the rewritten CV must not be longer than the original.\\n10. The CV is always in English. Escape LaTeX special characters correctly (write \\\\& for an ampersand, never a bare &).\\n\\ncover_letter RULES:\\n1. Language: the one given in \\\"=== LETTER LANGUAGE ===\\\". Length: 180 to 220 words in total.\\n2. Structure: a salutation line, then EXACTLY 4 paragraphs separated by blank lines, then a short closing formula line and the name \\\"Haimoudi Nouaman\\\" on the last line.\\n   Paragraph 1 - HOOK: start directly with a concrete fact about the role, a technology, the product, a project or the company context (quote the exact job title and the company name).\\n   Paragraph 2 - PROOF: ONE real accomplishment matching the main MUST_HAVE, from the experience or a catalog project, with its real technologies.\\n   Paragraph 3 - FIT: link the profile to ONE concrete responsibility of the offer (name it). Mention the offer's city honestly: the candidate is based in Casablanca; if the city differs, say he is ready to work in that city; if the work mode is not \\\"none\\\", mention it in the same sentence. Never claim to live elsewhere.\\n   Paragraph 4 - CLOSING: short, professional and confident; propose an interview.\\n3. Never claim a skill gap, never overstate, never mention an attachment other than the CV.\\n4. FORBIDDEN phrases (and any equivalent): \\\"Je vous ecris pour\\\", \\\"vif interet\\\", \\\"Je suis actuellement\\\", \\\"Je souhaite vous exprimer\\\", \\\"Actuellement etudiant\\\", \\\"Fort de mon experience\\\", \\\"Je reste a votre entiere disposition\\\", \\\"Je me tiens a votre disposition\\\", \\\"Je serais ravi de\\\", \\\"N'hesitez pas a me contacter\\\", \\\"Passionne par l'innovation\\\", \\\"Je vous prie d'agreer\\\", \\\"Veuillez agreer\\\", \\\"I am writing to\\\", \\\"express my interest\\\", \\\"Currently a student\\\", \\\"I am currently studying\\\", \\\"As a final-year student\\\", \\\"I would be delighted\\\", \\\"Please do not hesitate to contact me\\\".\\n5. Plain text; no Markdown symbols, no placeholders like [Company].\\n\\n=== JOB OFFER ===\\n\" + 'Title: ' + $('Mode de travail').first().json.job_title + '\\nCompany: ' + $('Mode de travail').first().json.company + '\\nLocation: ' + $('Mode de travail').first().json.location + '\\n\\nDescription:\\n' + $('Mode de travail').first().json.description + '\\n\\n=== LETTER LANGUAGE (detected from the job offer text) ===\\n' + ((($('Mode de travail').first().json.description || '').match(/\\b(le|la|les|des|et|vous|votre|pour|avec|une|du|nous|est|dans|sur)\\b/gi) || []).length > (($('Mode de travail').first().json.description || '').match(/\\b(the|and|you|your|for|with|our|is|are|to|of|in|we)\\b/gi) || []).length ? 'French' : 'English') + '\\n\\n=== WORK MODE (detected from the job offer text) ===\\n' + $('Mode de travail').first().json.work_mode + '\\n\\n=== PROJECTS CATALOG (JSON) ===\\n' + JSON.stringify($('Mode de travail').first().json.projects, null, 2) + '\\n\\n=== ORIGINAL CV (LaTeX) ===\\n' + $('Mode de travail').first().json.cv_latex + '\\n\\n' + \"OUTPUT FORMAT (mandatory, identical for every model): plain text only, exactly the structure below, nothing before the first marker and nothing after the last one. Write the LaTeX raw, exactly as in a .tex file, with real line breaks, not escaped, no code fences.\\n===KEYWORDS===\\nMUST_HAVE:\\n<keyword1, keyword2, ...>\\nIMPORTANT:\\n<keyword1, keyword2, ...>\\nNICE_TO_HAVE:\\n<keyword1, keyword2, ...>\\nDOMAIN_KEYWORDS:\\n<keyword1, keyword2, ...>\\n===CV_LATEX===\\n<complete LaTeX source>\\n===COVER_LETTER===\\n<cover letter>\\n===END===\" }] }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "4PpgtDwsaGdYqlOH",
+          "name": "Groq API Key"
+        }
+      }
+    },
+    {
+      "id": "b577fa24-f202-4c5b-9985-2e92ba054cb5",
+      "name": "Lire Projets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        272,
+        592
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:8000/projects",
+        "options": {}
+      }
+    },
+    {
+      "id": "4ba1c096-e9b5-42b2-afab-165515d58349",
+      "name": "Merge Projets",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        784,
+        304
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "556b3fd3-e042-414a-a249-71e685d60744",
+      "name": "Mode de travail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        304
+      ],
+      "parameters": {
+        "jsCode": "// Détection déterministe du mode de travail (par le code, pas par le modèle) dans la description de l'offre.\n// Les mots-clés trouvés (français ou anglais) sont traduits en anglais avant d'être transmis au prompt :\n// work_mode = \"hybrid\", \"remote\", \"on-site\" (plusieurs séparés par \", \"), ou exactement \"none\".\nconst KEYWORDS = [\n  ['remote', /t[ée]l[ée][- ]?travail/i],\n  ['hybrid', /\\bhybride\\b/i],\n  ['hybrid', /\\bhybrid\\b/i],\n  ['remote', /\\bremote\\b/i],\n  ['on-site', /\\bon[- ]?site\\b/i],\n  ['on-site', /pr[ée]sentiel/i],\n  ['remote', /\\bhome[- ]office\\b/i],\n  ['on-site', /\\bin[- ]person\\b/i],\n  ['on-site', /\\bsur[- ]site\\b/i],\n];\n\nreturn $input.all().map((item, index) => {\n  const description = String(item.json.description || '');\n  const found = [...new Set(KEYWORDS.filter(([, re]) => re.test(description)).map(([mode]) => mode))];\n  return {\n    json: { ...item.json, work_mode: found.length ? found.join(', ') : 'none' },\n    pairedItem: { item: index },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "986ede64-f17c-4e9d-9df4-ea91d8ff0bf8",
+      "name": "Mode lot ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1682,
+        504
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "deliver-batch",
+              "leftValue": "={{ String($('Webhook').first().json.query.deliver || '') }}",
+              "rightValue": "batch",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "c0098424-b8d4-4dc2-b5c7-070663d6ed33",
+      "name": "Réponse lot",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1912,
+        634
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify(Object.assign({}, $json, { url: $('Webhook').first().json.query.url, job_title: $('Extraire offre').first().json.job_title, company: $('Extraire offre').first().json.company, location: $('Extraire offre').first().json.location })) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extraire offre",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lire CV",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lire Projets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire offre": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire CV": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge Projets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Groq Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Mode lot ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compiler PDF": {
+      "main": [
+        [
+          {
+            "node": "Telegram CV PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram CV PDF": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Fallback": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire Projets": {
+      "main": [
+        [
+          {
+            "node": "Merge Projets",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Projets": {
+      "main": [
+        [
+          {
+            "node": "Mode de travail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mode de travail": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mode lot ?": {
+      "main": [
+        [
+          {
+            "node": "Réponse lot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compiler PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveExecutionProgress": true
+  }
+}

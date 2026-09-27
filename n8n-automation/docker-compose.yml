@@ -1,0 +1,25 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"   # accessible depuis ce PC uniquement, pas depuis le réseau
+    environment:
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - TZ=${GENERIC_TIMEZONE}
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  latex-compiler:
+    build: ./latex-compiler
+    container_name: latex-compiler
+    restart: unless-stopped
+    # Aucun port publié : n8n l'appelle sur le réseau Docker interne (http://latex-compiler:8080).
+    expose:
+      - "8080"
+
+volumes:
+  n8n_data:
+    external: true      # volume créé le 06/08/2026 par l'installation précédente : compte et données conservés
+    name: n8n_data

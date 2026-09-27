@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job to CV Generator</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1d2330; --muted: #5d6778; --border: #dde1e8;
+    --accent: #145a82; --accent-text: #ffffff; --ok: #1f7a45; --err: #b3261e; --warn: #9a6200;
+    --soft: #eef3f8; --demo: #fff4e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #9aa4b5; --border: #2e3542;
+      --accent: #4ea3d8; --accent-text: #0d1117; --ok: #4cc27f; --err: #f2766b; --warn: #e0a83a;
+      --soft: #212a36; --demo: #3a2e18;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+         color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  label:first-child { margin-top: 0; }
+  .hint { color: var(--muted); font-size: .85rem; font-weight: 400; }
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+                  background: var(--bg); color: var(--text); font: inherit; }
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; min-width: 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .modes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mode { flex: 1; min-width: 200px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+          cursor: pointer; font-weight: 400; margin: 0; }
+  .mode input { width: auto; margin-right: 8px; }
+  .mode:has(input:checked) { border-color: var(--accent); background: var(--soft); }
+  .mode.demo:has(input:checked) { background: var(--demo); }
+  button.primary { margin-top: 18px; width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--accent);
+                   color: var(--accent-text); font: inherit; font-weight: 700; cursor: pointer; }
+  button.secondary { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+                     color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .status-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .status-head h2 { font-size: 1.1rem; margin: 0; }
+  .elapsed { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .summary { color: var(--muted); word-break: break-all; margin: 4px 0 12px; font-size: .9rem; }
+  .bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+  .bar div { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+  ol.steps { list-style: none; padding: 0; margin: 12px 0 0; }
+  ol.steps li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+  ol.steps li:first-child { border-top: 0; }
+  .icon { width: 1.4em; text-align: center; flex: none; }
+  .err-detail { color: var(--err); font-size: .85rem; display: block; }
+  .message { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--soft); font-weight: 600; }
+  .message.success { color: var(--ok); }
+  .message.error { color: var(--err); }
+  .spin { display: inline-block; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Job to CV Generator</h1>
+  <p class="sub">CV optimisé ATS et lettre de motivation, livrés sur Telegram.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-offer" aria-selected="true" aria-controls="panel-offer">Une offre</button>
+    <button class="tab" role="tab" id="tab-search" aria-selected="false" aria-controls="panel-search">Recherche Indeed</button>
+  </div>
+
+  <form class="card" id="panel-offer" role="tabpanel" aria-labelledby="tab-offer">
+    <label for="offer-url">Lien de l'offre <span class="hint">(Indeed, ReKrute, …)</span></label>
+    <div class="row">
+      <input id="offer-url" type="url" required placeholder="https://ma.indeed.com/viewjob?jk=…" autocomplete="off">
+      <button type="button" class="secondary" id="paste">Coller</button>
+    </div>
+    <label>Mode</label>
+    <div class="modes" data-name="offer-mode"></div>
+    <button class="primary" type="submit">Générer le CV et la lettre</button>
+  </form>
+
+  <form class="card hidden" id="panel-search" role="tabpanel" aria-labelledby="tab-search">
+    <div class="grid">
+      <div>
+        <label for="days">Date de publication</label>
+        <select id="days">
+          <option value="1">Dernières 24 heures</option>
+          <option value="3" selected>3 derniers jours</option>
+          <option value="7">7 derniers jours</option>
+          <option value="14">14 derniers jours</option>
+        </select>
+      </div>
+      <div>
+        <label for="max">Nombre d'offres</label>
+        <select id="max">
+          <option value="1">1 offre</option>
+          <option value="2">2 offres</option>
+          <option value="3" selected>3 offres (max)</option>
+        </select>
+      </div>
+    </div>
+    <label for="q">Mots-clés <span class="hint">(vide = AI Engineer, MLOps, Machine Learning, Data Scientist, LLM…)</span></label>
+    <input id="q" type="text" maxlength="300" placeholder='ex. MLOps OR "Data Scientist"'>
+    <label>Mode</label>
+    <div class="modes" data-name="search-mode"></div>
+    <button class="primary" type="submit">Rechercher et traiter les offres</button>
+  </form>
+
+  <section class="card hidden" id="status" aria-live="polite">
+    <div class="status-head">
+      <h2 id="status-title">Traitement en cours</h2>
+      <span class="elapsed" id="elapsed"></span>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div id="progress" class="hidden">
+      <div class="bar"><div id="bar-fill"></div></div>
+      <span class="hint" id="progress-text"></span>
+    </div>
+    <ol class="steps" id="steps"></ol>
+    <div class="message hidden" id="message"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const MODES = [
+  ['honnete', 'Honnête', 'CV fidèle au profil réel, pour postuler'],
+  ['demo', 'Démo académique', 'CV simulé, filigrané « CV FICTIF »'],
+];
+document.querySelectorAll('.modes').forEach((box) => {
+  box.innerHTML = MODES.map(([value, title, hint], i) =>
+    `<label class="mode ${value === 'demo' ? 'demo' : ''}"><input type="radio" name="${box.dataset.name}" value="${value}"${i ? '' : ' checked'}>`
+    + `<strong>${title}</strong><br><span class="hint">${hint}</span></label>`).join('');
+});
+const modeOf = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+
+// Onglets (le dernier onglet choisi est mémorisé si le navigateur le permet).
+function showTab(name) {
+  for (const t of ['offer', 'search']) {
+    $('tab-' + t).setAttribute('aria-selected', String(t === name));
+    $('panel-' + t).classList.toggle('hidden', t !== name);
+  }
+  try { localStorage.setItem('tab', name); } catch (e) {}
+}
+$('tab-offer').onclick = () => showTab('offer');
+$('tab-search').onclick = () => showTab('search');
+try { if (localStorage.getItem('tab') === 'search') showTab('search'); } catch (e) {}
+
+$('paste').onclick = async () => {
+  try { $('offer-url').value = (await navigator.clipboard.readText()).trim(); }
+  catch (e) { $('offer-url').focus(); alert('Collage automatique refusé par le navigateur : utilise Ctrl+V.'); }
+};
+
+let timer = null;
+function setBusy(busy) { document.querySelectorAll('button.primary').forEach((b) => (b.disabled = busy)); }
+
+async function launch(endpoint, payload) {
+  setBusy(true);
+  try {
+    const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail?.error || data.detail?.[0]?.msg || 'HTTP ' + r.status);
+    $('status').classList.remove('hidden');
+    $('steps').innerHTML = '';
+    $('message').className = 'message hidden';
+    $('status-title').textContent = 'Traitement en cours';
+    poll(data.job_id);
+  } catch (e) {
+    showStatusError(e.message);
+    setBusy(false);
+  }
+}
+
+function showStatusError(text) {
+  $('status').classList.remove('hidden');
+  $('status-title').textContent = 'Impossible de lancer le traitement';
+  $('summary').textContent = '';
+  $('steps').innerHTML = '';
+  $('progress').classList.add('hidden');
+  const m = $('message');
+  m.className = 'message error';
+  m.textContent = '❌ ' + text;
+}
+
+function render(s) {
+  $('summary').textContent = s.summary;
+  $('elapsed').textContent = Math.floor(s.elapsed / 60) + ' min ' + String(s.elapsed % 60).padStart(2, '0') + ' s';
+  const icons = { success: '✅', error: '❌', running: '<span class="spin">⏳</span>' };
+  $('steps').innerHTML = s.steps.map((st) =>
+    `<li><span class="icon">${icons[st.status]}</span><span>${st.label}${st.runs > 1 ? ` <span class="hint">(×${st.runs})</span>` : ''}`
+    + (st.error ? `<span class="err-detail">${escapeHtml(st.error)}</span>` : '') + '</span></li>').join('')
+    || '<li><span class="icon"><span class="spin">⏳</span></span><span>Démarrage du workflow…</span></li>';
+  if (s.progress) {
+    $('progress').classList.remove('hidden');
+    $('bar-fill').style.width = (100 * s.progress.done / s.progress.total) + '%';
+    $('progress-text').textContent = `${s.progress.done} / ${s.progress.total} offre(s) traitée(s)`;
+  } else {
+    $('progress').classList.add('hidden');
+  }
+  const m = $('message');
+  if (s.state === 'running') {
+    m.className = s.message && s.message !== 'Démarrage du workflow…' ? 'message' : 'message hidden';
+    m.textContent = s.message;
+  } else {
+    $('status-title').textContent = s.state === 'success' ? 'Traitement terminé' : 'Traitement en échec';
+    m.className = 'message ' + s.state;
+    m.textContent = (s.state === 'success' ? '✅ ' : '❌ ') + s.message;
+  }
+}
+
+function escapeHtml(t) { return String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function poll(jobId) {
+  clearTimeout(timer);
+  fetch('/ui/api/jobs/' + jobId).then((r) => r.json().then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => {
+    if (!ok) throw new Error(d.detail?.error || 'Suivi impossible');
+    render(d);
+    if (d.state === 'running') timer = setTimeout(() => poll(jobId), 2000);
+    else setBusy(false);
+  }).catch((e) => { showStatusError(e.message); setBusy(false); });
+}
+
+$('panel-offer').onsubmit = (ev) => {
+  ev.preventDefault();
+  launch('/ui/api/offer', { url: $('offer-url').value.trim(), mode: modeOf('offer-mode') });
+};
+$('panel-search').onsubmit = (ev) => {
+  ev.preventDefault();
+  launch('/ui/api/search', { days: Number($('days').value), max: Number($('max').value),
+                             mode: modeOf('search-mode'), q: $('q').value.trim() });
+};
+</script>
+</body>
+</html>

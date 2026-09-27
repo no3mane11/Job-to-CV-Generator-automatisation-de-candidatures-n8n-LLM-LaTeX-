@@ -1,0 +1,81 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{helvet}
+\usepackage{parskip}
+\geometry{a4paper, top=1cm, bottom=1cm, left=1.6cm, right=1.6cm}
+\renewcommand{\familydefault}{\sfdefault}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\definecolor{headcolor}{RGB}{20,90,130}
+\definecolor{lightgray}{RGB}{90,90,90}
+\hypersetup{colorlinks=true, urlcolor=headcolor, linkcolor=headcolor}
+\setcounter{secnumdepth}{0}
+\titleformat{\section}
+  {\normalsize\bfseries\color{headcolor}}
+  {}{0pt}
+  {\MakeUppercase}[{\color{headcolor}\titlerule[0.8pt]}]
+\titlespacing*{\section}{0pt}{6pt}{2pt}
+\setlist[itemize]{leftmargin=14pt, itemsep=0pt, topsep=1pt, parsep=0pt}
+\newcommand{\entryheader}[2]{%
+  \par\noindent\textbf{#1}\hfill\textit{#2}\par
+}
+\begin{document}
+{\Large\bfseries\color{headcolor} HAIMOUDI NOUAMAN}\\[3pt]
+{\normalsize\color{lightgray} AI Engineer -- LLM, RAG \& Intelligent Agents}\\[4pt]
+Casablanca, Morocco \quad | \quad +212 663-181410 \quad | \quad noamanehaimoudi79@gmail.com
+\section{Profile}
+AI Engineer -- Computer Science and Networks Engineer (EMSI, 2026) with a Master 2 in Artificial Intelligence (Dual Degree, Université Côte d'Azur, 2026). Over 1 year of experience delivering Generative AI solutions in professional environments: AI agents, RAG architectures, LLM integration and AI tool benchmarking, shipped with Docker and GitLab CI/CD.
+\section{Professional Experience}
+\entryheader{AI \& DevOps Engineer -- Qualitiz}{2025 -- 2026}
+\textit{Development of Generative AI solutions in client environments}
+\begin{itemize}
+  \item Design and development of an accounting \textbf{AI agent}, integrated with the client's ERP ERPNext (France), automating business tasks for a real client use case.
+  \item Development of a high-performance, fully local, and sovereign \textbf{RAG system} (FastAPI, Ollama, FAISS, OCR), with no dependency on external cloud services.
+  \item Execution of systematic comparative benchmarks to select the best \textbf{LLMs}, embedding models, and OCR engines based on accuracy, latency, and cost criteria.
+  \item Implementation of a DevOps pipeline (Docker, GitLab CI/CD) ensuring the reliability and reproducibility of deployed solutions.
+\end{itemize}
+\entryheader{Full-Stack Developer (Intern) -- KBM Consulting, Casablanca}{07/2025 -- 08/2025}
+\begin{itemize}
+  \item Contribution to the software architecture design of an application (Repository Pattern / REST API).
+  \item Design and implementation of a first Machine Learning model \textbf{from scratch} (without frameworks): linear regression to predict project completion dates.
+  \item Integration of \textbf{Ollama} models to assist team members in selecting the most suitable AI model for each task.
+\end{itemize}
+\entryheader{Software Developer (Intern) -- Lamalif Group, Marrakech}{07/2024}
+\begin{itemize}
+  \item Development of an inventory management application featuring a dynamic dashboard.
+  \item Integration of \textbf{Power BI} for data visualization and inventory KPI tracking.
+  \item Integration of a \textbf{chatbot API} to assist employees in their daily tasks.
+\end{itemize}
+\section{Projects \& Portfolio}
+Other personal projects (web, mobile, desktop) are available on my GitHub: \href{https://github.com/no3mane11}{github.com/no3mane11}
+% Section entièrement générée par le pipeline à partir de projects_catalog.json (aucun projet par défaut).
+\section{Technical Skills}
+\begin{itemize}
+  \item \textbf{Generative AI \& LLM:} Python, LLMs (Ollama), RAG architectures, AI agents / chatbots, FAISS, embeddings, OCR
+  \item \textbf{Machine Learning:} Modeling from scratch, TensorFlow Lite, comparative benchmarking of AI models
+  \item \textbf{DevOps \& Architecture:} Docker, CI/CD (GitLab, GitHub Actions), REST API, microservices, Kubernetes / OpenShift
+  \item \textbf{Software Development:} Java (Spring Boot), C\#, PHP, JavaScript (React), Kotlin
+  \item \textbf{Databases \& Visualization:} SQL, PostgreSQL, MySQL, MongoDB, Power BI
+\end{itemize}
+\section{Education}
+\entryheader{Master 2 in Artificial Intelligence (Dual Degree) -- Université Côte d'Azur, Nice}{2025 -- 2026}
+Deep Learning -- Machine Learning -- Intelligent Systems Modeling -- Python for AI
+\entryheader{Engineering Degree in Computer Science \& Networks (5-Year Degree) -- EMSI, Marrakech}{2021 -- 2026}
+Software Engineering -- Databases -- Mobile Programming -- Agile Project Management
+\section{Certifications}
+\begin{itemize}
+  \item AWS Certified AI Practitioner -- Amazon Web Services
+  \item Retrieval Augmented Generation (RAG) -- DeepLearning.AI
+  \item Python for Data Science, AI \& Development -- IBM
+  \item Introduction to Machine Learning -- Duke University
+\end{itemize}
+\section{Availability}
+Based in Casablanca, Morocco. Available immediately.
+\end{document}

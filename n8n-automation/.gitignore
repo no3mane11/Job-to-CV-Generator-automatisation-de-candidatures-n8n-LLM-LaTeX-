@@ -1,0 +1,5 @@
+.env
+# Données n8n si un jour elles sont bind-montées localement au lieu du volume nommé
+n8n_data/
+.n8n/
+data/

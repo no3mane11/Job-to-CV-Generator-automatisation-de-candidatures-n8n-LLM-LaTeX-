@@ -1,0 +1,6 @@
+# API locale (job-automation/src/api_server.py) — Python 3.10+
+# Installation : pip install -r requirements.txt   puis   scrapling install   (navigateurs pour le scraping)
+fastapi==0.126.0
+uvicorn[standard]==0.38.0
+pydantic==2.12.5
+scrapling[fetchers]==0.4.15

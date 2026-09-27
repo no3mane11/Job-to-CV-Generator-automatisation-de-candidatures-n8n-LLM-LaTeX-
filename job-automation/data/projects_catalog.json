@@ -1,0 +1,73 @@
+{
+  "projects": [
+    {
+      "name": "RAG Knowledge Assistant (PFE-RAG)",
+      "description": "Final-year project: full-stack Retrieval-Augmented Generation application that ingests PDF, image and Office documents (OCR, table extraction, contextual chunking), indexes them with FAISS embeddings plus BM25, and answers questions with source citations through local LLMs served by Ollama. Includes JWT authentication, conversation history, admin/audit features, RAGAS evaluation, Phoenix tracing and LLM/quantization benchmarks.",
+      "technologies": [
+        "Python", "FastAPI", "FAISS", "Sentence-Transformers (all-MiniLM-L6-v2)", "BM25 (rank-bm25)", "LangChain",
+        "Ollama (Llama 3.1 8B, Qwen 2.5, Gemma 3, Ministral)", "PaddleOCR", "EasyOCR", "Docling", "Camelot", "pdfplumber",
+        "PyMuPDF", "PyTorch", "RAGAS", "Arize Phoenix", "OpenTelemetry", "PostgreSQL", "SQLAlchemy", "Alembic", "JWT",
+        "React 19", "TypeScript", "Vite", "Tailwind CSS", "Radix UI", "Docker Compose"
+      ],
+      "category_tags": ["ai_ml", "fullstack", "backend"]
+    },
+    {
+      "name": "E-Learning Adaptatif AI",
+      "description": "Adaptive e-learning platform that detects learner frustration in real time from the front camera with an on-device TensorFlow Lite model (MobileNetV2) and streams the score to a live teacher dashboard. Spring Boot REST API (JWT auth, courses, lessons, quizzes, learning sessions) with a Flutter mobile app.",
+      "technologies": [
+        "Java 17", "Spring Boot 3.4", "Spring Security", "JWT", "Spring Data JPA", "PostgreSQL", "WebSocket",
+        "Swagger/OpenAPI (springdoc)", "Flutter", "Dart", "Riverpod", "TensorFlow Lite", "MobileNetV2", "Docker"
+      ],
+      "category_tags": ["ai_ml", "fullstack", "backend"]
+    },
+    {
+      "name": "Navigation Assistance App for Visually Impaired Users (ProjetAiMalvoyant_V2)",
+      "description": "Android app for visually impaired users: real-time obstacle detection on the camera feed with a TensorFlow Lite SSD MobileNet v1 model, monocular distance estimation, spoken obstacle announcements (French or Darija) and GPS guidance on an OpenStreetMap map with OSRM routing. Built on top of a public real-time object detection tutorial.",
+      "technologies": [
+        "Kotlin", "Android", "CameraX", "Camera2 API", "TensorFlow Lite", "SSD MobileNet v1", "TensorFlow Lite GPU delegate",
+        "osmdroid (OpenStreetMap)", "OSRM", "Android Text-to-Speech"
+      ],
+      "category_tags": ["ai_ml"]
+    },
+    {
+      "name": "MobileSec-MS",
+      "description": "Academic microservice platform (7 FastAPI services) for automated static security analysis of Android APKs: manifest and permission checks, hard-coded secret detection, weak cryptography and network-security configuration analysis, an aggregated risk report and OWASP MASVS-aligned fix suggestions, plus a CI connector and a GitHub Actions workflow.",
+      "technologies": ["Python", "FastAPI", "Uvicorn", "Androguard", "Requests", "REST microservices", "GitHub Actions"],
+      "category_tags": ["backend", "devops"]
+    },
+    {
+      "name": "QuizApp (Dockerized)",
+      "description": "Team project (5 contributors): full-stack quiz platform where admins create and manage quizzes and users take them with instant feedback and an analytics dashboard. JWT role-based security, Swagger-documented REST API, frontend and backend containerized with Docker Compose.",
+      "technologies": [
+        "Java 17", "Spring Boot 3.4", "Spring Security", "JWT", "MongoDB Atlas", "Swagger/OpenAPI (springdoc)", "React",
+        "Vite", "Tailwind CSS", "Recharts", "Jest", "Docker", "Docker Compose"
+      ],
+      "category_tags": ["fullstack", "devops", "backend"]
+    },
+    {
+      "name": "GestionTacheProjet (AI-assisted project & task management)",
+      "description": "Project and task management platform with JWT role-based access, CRUD for projects, tasks, collaborators and assignments, and an integrated local AI assistant (Ollama, Llama 3.2 3B) that analyses urgent tasks, collaborator performance and projects, predicts project completion and answers free-form questions. Layered ASP.NET Core API with a React dashboard.",
+      "technologies": [
+        "C#", "ASP.NET Core 8 Web API", "Entity Framework Core", "SQL Server", "JWT", "Swagger (Swashbuckle)", "BCrypt",
+        "Bogus", "CsvHelper", "React", "Vite", "Material UI", "Material React Table", "Recharts", "Axios", "Tailwind CSS",
+        "jsPDF", "Ollama (Llama 3.2 3B)"
+      ],
+      "category_tags": ["fullstack", "backend", "ai_ml"]
+    },
+    {
+      "name": "HotelReservation (Desktop + Web)",
+      "description": "Hotel management system in two parts sharing one SQL Server database: a Windows Forms desktop app for reception staff (rooms, clients, reservations, payments, analytics dashboard, PDF/Excel exports, e-mail notifications) and an ASP.NET Core MVC web portal where clients browse rooms, register and book.",
+      "technologies": [
+        "C#", ".NET 8", "Windows Forms", "ASP.NET Core MVC", "Entity Framework Core", "SQL Server", "LiveCharts", "iText7",
+        "EPPlus", "SMTP (System.Net.Mail)"
+      ],
+      "category_tags": ["fullstack", "backend"]
+    },
+    {
+      "name": "MarketPlace Java",
+      "description": "JavaFX desktop marketplace with sign-up/login, a product catalog, product listing management and user-to-user chat, plus an optional webcam login that compares the captured image with the profile photo using OpenCV (grayscale pixel difference).",
+      "technologies": ["Java 17", "JavaFX", "FXML", "JDBC", "H2 (MySQL mode)", "OpenCV", "ControlsFX", "BootstrapFX", "Maven"],
+      "category_tags": ["backend"]
+    }
+  ]
+}
